@@ -332,8 +332,17 @@ fn bench_profile_distance(c: &mut Criterion) {
     });
 }
 
+fn bench_cohens_d(c: &mut Criterion) {
+    c.bench_function("bridge/cohens_d", |b| {
+        b.iter(|| {
+            bodh::bridge::t_statistic_to_cohens_d(black_box(3.0), black_box(30), black_box(30))
+        })
+    });
+}
+
 criterion_group!(
     benches,
+    bench_cohens_d,
     bench_weber_fechner,
     bench_fitts_law,
     bench_fitts_law_shannon,
