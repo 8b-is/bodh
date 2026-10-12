@@ -32,11 +32,15 @@ pub fn t_statistic_to_d_prime(t: f64, n: usize) -> f64 {
 #[must_use]
 #[inline]
 pub fn t_statistic_to_cohens_d(t: f64, n1: usize, n2: usize) -> f64 {
-    let df = (n1 + n2).saturating_sub(2);
-    if df == 0 {
+    // Keep ordinary counts exact; convert before adding when usize would overflow.
+    let df = match n1.checked_add(n2) {
+        Some(total) => total.saturating_sub(2) as f64,
+        None => n1 as f64 + n2 as f64 - 2.0,
+    };
+    if df == 0.0 {
         return 0.0;
     }
-    2.0 * t / (df as f64).sqrt()
+    2.0 * t / df.sqrt()
 }
 
 // ── Statistics → Psychometrics ────────────────────────────────────────────
@@ -199,6 +203,19 @@ mod tests {
         // t=3.0, n1=30, n2=30, df=58: d = 6/√58 ≈ 0.788
         let d = t_statistic_to_cohens_d(3.0, 30, 30);
         assert!((d - 6.0 / 58.0_f64.sqrt()).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_t_to_cohens_d_large_counts_do_not_overflow() {
+        for (n1, n2) in [(usize::MAX, 1), (usize::MAX, usize::MAX)] {
+            let expected = 6.0 / (n1 as f64 + n2 as f64 - 2.0).sqrt();
+            let actual = t_statistic_to_cohens_d(3.0, n1, n2);
+            assert!(actual.is_finite() && actual > 0.0);
+            assert!((actual - expected).abs() <= expected * 1e-12);
+        }
+        for (n1, n2) in [(0, 0), (1, 0), (1, 1), (2, 0)] {
+            assert_eq!(t_statistic_to_cohens_d(3.0, n1, n2), 0.0);
+        }
     }
 
     // ── Psychometrics ──
